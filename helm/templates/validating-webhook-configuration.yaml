@@ -1,0 +1,40 @@
+{{ if .Values.validatingWebhookConfig.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "admission-webhook.fullname" . }}
+  annotations:
+    cert-manager.io/inject-ca-from: "{{ .Release.Namespace }}/{{ include "admission-webhook.fullname" . }}"
+webhooks:
+  - name: webhook
+    sideEffects: {{ .Values.validatingWebhookConfig.sideEffects }}
+    failurePolicy: {{ .Values.validatingWebhookConfig.failurePolicy }}
+    matchPolicy: {{ .Values.validatingWebhookConfig.matchPolicy }}
+    rules: {{ .Values.validatingWebhookConfig.rules }}
+    admissionReviewVersions: {{ .Values.validatingWebhookConfig.admissionReviewVersions }}
+    namespaceSelector:
+      matchExpressions:
+        - key: control-plane # ignore kube-system
+          operator: DoesNotExist
+        {{- range .Values.validatingWebhookConfig.namespaceSelector.matchExpressions }}
+        - key: {{ .key }}
+          operator: {{ .operator }}
+          values: {{ toJson .values }}
+        {{- end }}
+      matchLabels:
+        {{- toYaml .Values.validatingWebhookConfig.namespaceSelector.matchLabels | nindent 8 }}
+    objectSelector:
+      matchExpressions:
+        {{- range .Values.validatingWebhookConfig.objectSelector.matchExpressions }}
+        - key: {{ .key }}
+          operator: {{ .operator }}
+          values: {{ toJson .values }}
+       {{- end }}
+      matchLabels:
+        {{- toYaml .Values.validatingWebhookConfig.objectSelector.matchLabels | nindent 8 }}
+    clientConfig:
+      service:
+        name: {{ include "admission-webhook.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: {{ .Values.validatingWebhookConfig.service.path }}
+{{ end }}
